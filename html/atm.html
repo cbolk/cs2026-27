@@ -1,0 +1,481 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ATM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: pseudocode on the left, machine state (variables, check) on the right; on phones the machine sits above the code. Fixed light theme, same look as the digit simulator. */
+:root {
+  --bg: #F3F6F9;
+  --surface: #FFFFFF;
+  --ink: #15212C;
+  --muted: #5A6B7B;
+  --line: #D6DEE6;
+  --line-strong: #B9C5D1;
+  --accent: #1F4FD8;
+  --accent-soft: #E6ECFD;
+  --min: #0E7C66;
+  --min-soft: #DDF3EC;
+  --no: #8A5A00;
+  --no-soft: #FBF0D9;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 28px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+header { display: flex; flex-direction: column; gap: 6px; }
+h1 { margin: 0; font-size: 1.7rem; line-height: 1.15; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 62ch; }
+
+.label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* input */
+.entry { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+#amount {
+  font: 600 1.5rem var(--font-mono);
+  letter-spacing: 0.08em;
+  width: min(100%, 11rem);
+  padding: 6px 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+#amount[aria-invalid="true"] { border-color: var(--no); background: var(--no-soft); }
+#amount:focus-visible, button:focus-visible, select:focus-visible, #scrub:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.outrow { display: flex; gap: 6px; }
+.ocell {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 3.6rem;
+  padding: 3px 10px 5px;
+  background: var(--bg);
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  color: var(--muted);
+}
+.ocell .k { font: 500 0.72rem var(--font-mono); }
+.ocell output { font: 600 1.5rem/1.2 var(--font-mono); font-variant-numeric: tabular-nums; }
+.ocell.set { background: var(--min-soft); border: 1px solid var(--min); color: var(--min); }
+.examples { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.examples .label { margin-right: 4px; }
+.chip {
+  font: 500 0.85rem var(--font-mono);
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+select {
+  font: 500 0.9rem var(--font-ui);
+  padding: 9px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  max-width: 100%;
+}
+.hint { margin: 0; font-size: 0.8rem; color: var(--muted); }
+
+/* controls */
+.controls {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button {
+  font: 500 0.92rem var(--font-ui);
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover:not(:disabled) { background: #1941B3; border-color: #1941B3; color: #fff; }
+.speed { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+.speed select { padding: 6px 8px; font-size: 0.88rem; }
+.scrub { display: flex; align-items: center; gap: 12px; }
+#scrub { flex: 1; min-width: 0; accent-color: var(--accent); }
+.stepno { font: 500 0.85rem var(--font-mono); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.msg {
+  margin: 0;
+  min-height: 3.1em;
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+.msg.final { background: var(--min-soft); border-left-color: var(--min); }
+.msg.warn { background: var(--no-soft); border-left-color: var(--no); }
+.msg b { font-family: var(--font-mono); font-weight: 600; }
+.badge { font: 600 0.78rem var(--font-mono); padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; }
+.badge.yes { background: var(--min); color: #fff; }
+.badge.no { background: var(--no-soft); color: var(--no); border: 1px solid #E7CF98; }
+
+/* main grid */
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.panel > h2 { margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+
+/* pseudocode */
+ol.code { list-style: none; margin: 0; padding: 6px 0; font: 400 0.84rem/1.35 var(--font-mono); }
+ol.code li {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  padding: 5px 12px 5px 0;
+  overflow-wrap: anywhere;
+}
+ol.code .n { text-align: right; padding-right: 12px; color: var(--line-strong); font-variant-numeric: tabular-nums; user-select: none; }
+ol.code li.on { background: var(--accent-soft); }
+ol.code li.on .n { color: var(--accent); font-weight: 600; }
+ol.code li.on .t { font-weight: 600; }
+ol.code .fix {
+  margin-left: 8px;
+  font: 600 0.62rem var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--no-soft);
+  color: var(--no);
+  border: 1px solid #E7CF98;
+  white-space: nowrap;
+}
+
+/* machine */
+.machine .sec { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.machine .sec + .sec { border-top: 1px solid var(--line); }
+.vars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.vars div {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.vars dt { font: 500 0.78rem var(--font-mono); color: var(--muted); }
+.vars dd { margin: 0; font: 600 1.45rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.vars div.hot { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent-soft); }
+.vars div.hot dd { color: var(--accent); }
+.vars div.fin dd { color: var(--min); }
+.check { font: 500 1rem var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.check .tot { font-weight: 600; }
+.check .pend { color: var(--muted); font-family: var(--font-ui); font-size: 0.9rem; }
+
+@media (max-width: 820px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .machine { order: -1; }
+  .speed { margin-left: 0; }
+}
+@media (max-width: 480px) {
+  h1 { font-size: 1.45rem; }
+  .vars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>ATM</h1>
+    <p>given a withdrawal amount that is a multiple of €5, determine the minimum number of banknotes required using €50, €20, €10 and €5 notes, and display the quantity of each denomination</p>
+    <h2>solving algorithm</h2>
+    <p>Use as many €50 bills as possible, then cover the remaining amount with as many €20 bills as possible, cover the remaining amount with as many €10 bills as possible, and finally use €5 bills.</p> 
+  </header>
+
+  <div class="entry">
+    <div class="field">
+      <label class="label" for="amount">Input</label>
+      <input id="amount" type="text" inputmode="numeric" autocomplete="off" maxlength="9" value="235" aria-describedby="amthint">
+    </div>
+    <div class="field">
+      <span class="label" id="outlabel">Output</span>
+      <div class="outrow" role="group" aria-labelledby="outlabel">
+        <div class="ocell" id="o50"><span class="k">n50</span><output>—</output></div>
+        <div class="ocell" id="o20"><span class="k">n20</span><output>—</output></div>
+        <div class="ocell" id="o10"><span class="k">n10</span><output>—</output></div>
+        <div class="ocell" id="o5"><span class="k">n5</span><output>—</output></div>
+      </div>
+    </div>
+  </div>
+  <div class="examples" role="group" aria-label="Examples" style="margin-top:-8px">
+    <span class="label">Examples</span>
+    <button type="button" class="chip" data-ex="235">235</button>
+    <button type="button" class="chip" data-ex="90">90</button>
+    <button type="button" class="chip" data-ex="5">5</button>
+    <button type="button" class="chip" data-ex="60">60</button>
+    <button type="button" class="chip" data-ex="1285">1285</button>
+  </div>
+  <p class="hint" id="amthint" style="margin-top:-12px">Digits only, a positive multiple of 5. Any change restarts from the first step.</p>
+
+  <section class="controls" aria-label="Run controls">
+    <div class="buttons">
+      <button type="button" id="bFirst">Start</button>
+      <button type="button" id="bBack">Back</button>
+      <button type="button" id="bNext" class="primary">Next</button>
+      <button type="button" id="bAuto">Run</button>
+      <button type="button" id="bLast">End</button>
+      <label class="speed" for="speed">Speed
+        <select id="speed">
+          <option value="1300">Slow</option>
+          <option value="750" selected>Normal</option>
+          <option value="300">Fast</option>
+        </select>
+      </label>
+    </div>
+    <div class="scrub">
+      <input id="scrub" type="range" min="0" max="0" value="0" aria-label="Position in the execution">
+      <span class="stepno" id="stepno">Step 0 / 0</span>
+    </div>
+    <p class="msg" id="msg" aria-live="polite"></p>
+  </section>
+
+  <div class="grid">
+    <section class="panel">
+      <h2 class="label">Algorithm</h2>
+      <ol class="code" id="code"></ol>
+    </section>
+
+    <section class="panel machine">
+      <h2 class="label">State</h2>
+      <div class="sec">
+        <p class="label">Variables</p>
+        <dl class="vars" id="vars"></dl>
+        <p class="hint">The variable just assigned is highlighted. rem is what is left after the notes already taken.</p>
+      </div>
+      <div class="sec">
+        <p class="label">Check</p>
+        <div class="check" id="check"></div>
+        <p class="hint">The notes handed out must add up to the amount. Shown when the result is displayed.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script id="logic">
+/* Builds the full trace of the algorithm: one object per step. */
+function fmt(x) { return String(Math.round(x * 100) / 100); }
+function buildTrace(amount) {
+  if (!(amount > 0) || amount % 5 !== 0) return [];
+  var steps = [];
+  var v = { amount: null, rem: null, n50: null, n20: null, n10: null, n5: null };
+  var hot = null, done = false;
+  function push(line, msg, assign) {
+    hot = null;
+    if (assign) { v[assign[0]] = assign[1]; hot = assign[0]; }
+    steps.push({ line: line, msg: msg, v: Object.assign({}, v), hot: hot, done: done });
+  }
+  var I = Math.floor;
+  var A = amount;
+
+  push(0, 'Amount acquired: <b>' + A + '</b>.', ['amount', A]);
+
+  var n50 = I(A / 50);
+  push(1, 'n50 = integer(' + A + ' / 50) = integer(' + fmt(A / 50) + ') = <b>' + n50 + '</b>.', ['n50', n50]);
+
+  var rem = A - n50 * 50;
+  push(2, 'rem = ' + A + ' − ' + n50 + ' × 50 = <b>' + rem + '</b>.', ['rem', rem]);
+
+  var n20 = I(rem / 20);
+  push(3, 'n20 = integer(' + rem + ' / 20) = integer(' + fmt(rem / 20) + ') = <b>' + n20 + '</b>.', ['n20', n20]);
+
+  var remBefore = rem;
+  rem = remBefore - n20 * 20;
+  push(4, 'rem = ' + remBefore + ' − ' + n20 + ' × 20 = <b>' + rem + '</b>.', ['rem', rem]);
+
+  var n10 = I(rem / 10);
+  push(5, 'n10 = integer(' + rem + ' / 10) = integer(' + fmt(rem / 10) + ') = <b>' + n10 + '</b>.', ['n10', n10]);
+
+  var n5 = (rem - n10 * 10) / 5;
+  push(6, 'n5 = (' + rem + ' − ' + n10 + ' × 10) / 5 = ' + (rem - n10 * 10) + ' / 5 = <b>' + n5 + '</b>.', ['n5', n5]);
+
+  var total = n50 * 50 + n20 * 20 + n10 * 10 + n5 * 5;
+  var ok = total === A;
+  done = true;
+  push(7, 'Display n50, n20, n10, n5: <b>' + n50 + ', ' + n20 + ', ' + n10 + ', ' + n5 + '</b>. ' +
+    'The notes add up to ' + total + ' → ' + (ok ? '<span class="badge yes">matches</span> the amount.' : '<span class="badge no">does not match</span> the amount ' + A + '.'));
+  steps[steps.length - 1].ok = ok;
+  steps[steps.length - 1].total = total;
+  return steps;
+}
+</script>
+
+<script id="ui">
+(function () {
+  var CODE = [
+    'acquire amount',
+    'n50 = integer (amount / 50)',
+    'rem = amount − n50 × 50',
+    'n20 = integer (rem / 20)',
+    'rem = rem − n20 × 20',
+    'n10 = integer (rem / 10)',
+    'n5 = (rem − n10 × 10) / 5',
+    'display n50, n20, n10, n5'
+  ];
+  var VARS = ['amount', 'rem', 'n50', 'n20', 'n10', 'n5'];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var amtEl = $('amount'), msgEl = $('msg'), scrub = $('scrub'), stepno = $('stepno');
+  var bFirst = $('bFirst'), bBack = $('bBack'), bNext = $('bNext'), bAuto = $('bAuto'), bLast = $('bLast');
+  var trace = [], idx = 0, timer = null, amount = 0, problem = '', codeLis = [];
+
+  var codeEl = $('code');
+  codeEl.innerHTML = CODE.map(function (r, i) {
+    return '<li data-l="' + i + '"><span class="n">' + (i + 1) + '</span><span class="t">' + r + '</span></li>';
+  }).join('');
+  codeLis = codeEl.querySelectorAll('li');
+
+  $('vars').innerHTML = VARS.map(function (k) {
+    return '<div id="v_' + k + '"><dt>' + k + '</dt><dd>—</dd></div>';
+  }).join('');
+
+  function stop() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    bAuto.textContent = 'Run';
+  }
+
+  function render() {
+    var has = trace.length > 0;
+    var s = has ? trace[idx] : null;
+
+    codeLis.forEach(function (li, i) { li.classList.toggle('on', !!s && s.line === i); });
+
+    VARS.forEach(function (k) {
+      var box = $('v_' + k);
+      var val = s ? s.v[k] : null;
+      box.querySelector('dd').textContent = val === null ? '—' : val;
+      box.classList.toggle('hot', !!s && s.hot === k);
+      box.classList.toggle('fin', !!s && s.done && k !== 'amount' && k !== 'rem');
+    });
+
+    [['n50', 'o50'], ['n20', 'o20'], ['n10', 'o10'], ['n5', 'o5']].forEach(function (p) {
+      var cell = $(p[1]);
+      var on = !!s && s.done;
+      cell.querySelector('output').textContent = on ? s.v[p[0]] : '—';
+      cell.classList.toggle('set', on);
+    });
+
+    var ck = $('check');
+    if (s && s.done) {
+      ck.innerHTML = s.v.n50 + ' × 50 + ' + s.v.n20 + ' × 20 + ' + s.v.n10 + ' × 10 + ' + s.v.n5 + ' × 5 = <span class="tot">' + s.total +
+        '</span> &nbsp;' + (s.ok ? '<span class="badge yes">= ' + s.v.amount + '</span>' : '<span class="badge no">≠ ' + s.v.amount + '</span>');
+    } else {
+      ck.innerHTML = '<span class="pend">Not available yet.</span>';
+    }
+
+    if (has) { msgEl.innerHTML = s.msg; }
+    else { msgEl.textContent = problem; }
+    msgEl.classList.toggle('final', !!s && s.done && s.ok);
+    msgEl.classList.toggle('warn', !has || (!!s && s.done && !s.ok));
+
+    stepno.textContent = 'Step ' + (has ? idx + 1 : 0) + ' / ' + trace.length;
+    scrub.max = Math.max(0, trace.length - 1);
+    scrub.value = idx;
+    scrub.disabled = !has;
+    var atStart = !has || idx === 0, atEnd = !has || idx === trace.length - 1;
+    bFirst.disabled = atStart; bBack.disabled = atStart;
+    bNext.disabled = atEnd; bLast.disabled = atEnd; bAuto.disabled = !has;
+    if (atEnd && timer) stop();
+  }
+
+  function load() {
+    stop();
+    var raw = amtEl.value;
+    amount = raw === '' ? 0 : parseInt(raw, 10);
+    if (raw === '') problem = 'Enter an amount to start the simulation.';
+    else if (amount <= 0) problem = 'The amount must be greater than 0.';
+    else if (amount % 5 !== 0) problem = amount + ' is not a multiple of 5. The algorithm expects a multiple of 5, so try ' + (amount - amount % 5 || 5) + ' or ' + (amount - amount % 5 + 5) + '.';
+    else problem = '';
+    amtEl.setAttribute('aria-invalid', problem && raw !== '' ? 'true' : 'false');
+    trace = buildTrace(amount);
+    idx = 0;
+    render();
+  }
+
+  function go(i) {
+    if (!trace.length) return;
+    idx = Math.min(trace.length - 1, Math.max(0, i));
+    render();
+  }
+
+  function tick() {
+    if (idx >= trace.length - 1) { stop(); return; }
+    go(idx + 1);
+    if (idx >= trace.length - 1) { stop(); return; }
+    timer = setTimeout(tick, Number($('speed').value));
+  }
+
+  bFirst.addEventListener('click', function () { stop(); go(0); });
+  bBack.addEventListener('click', function () { stop(); go(idx - 1); });
+  bNext.addEventListener('click', function () { stop(); go(idx + 1); });
+  bLast.addEventListener('click', function () { stop(); go(trace.length - 1); });
+  bAuto.addEventListener('click', function () {
+    if (timer) { stop(); return; }
+    if (idx >= trace.length - 1) go(0);
+    bAuto.textContent = 'Pause';
+    timer = setTimeout(tick, Number($('speed').value));
+  });
+  scrub.addEventListener('input', function () { stop(); go(Number(scrub.value)); });
+
+  amtEl.addEventListener('input', function () {
+    var clean = amtEl.value.replace(/\D/g, '');
+    if (clean !== amtEl.value) amtEl.value = clean;
+    load();
+  });
+  document.querySelectorAll('.chip').forEach(function (b) {
+    b.addEventListener('click', function () {
+      amtEl.value = b.getAttribute('data-ex');
+      load();
+    });
+  });
+  document.addEventListener('keydown', function (e) {
+    var t = e.target && e.target.tagName;
+    if (t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight') { stop(); go(idx + 1); }
+    else if (e.key === 'ArrowLeft') { stop(); go(idx - 1); }
+  });
+
+  load();
+})();
+</script>
+
+</body></html>

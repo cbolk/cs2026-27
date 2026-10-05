@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Least frequent digit</title>
+<style>
+/* Layout: pseudocode on the left, machine state (digits, counters 0→9, variables) on the right; on phones the machine sits above the code. Fixed light theme. */
+:root {
+  --bg: #F3F6F9;
+  --surface: #FFFFFF;
+  --ink: #15212C;
+  --muted: #5A6B7B;
+  --line: #D6DEE6;
+  --line-strong: #B9C5D1;
+  --accent: #1F4FD8;
+  --accent-soft: #E6ECFD;
+  --min: #0E7C66;
+  --min-soft: #DDF3EC;
+  --no: #8A5A00;
+  --no-soft: #FBF0D9;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 28px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+header { display: flex; flex-direction: column; gap: 6px; }
+h1 { margin: 0; font-size: 1.7rem; line-height: 1.15; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 62ch; }
+
+.label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* input */
+.entry { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+#num {
+  font: 600 1.5rem var(--font-mono);
+  letter-spacing: 0.08em;
+  width: min(100%, 17rem);
+  padding: 6px 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+#num:focus-visible, button:focus-visible, select:focus-visible, #scrub:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.outbox {
+  display: block;
+  min-width: 4.5rem;
+  padding: 6px 14px;
+  text-align: center;
+  font: 600 1.5rem var(--font-mono);
+  line-height: normal;
+  background: var(--bg);
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  color: var(--muted);
+}
+.outbox.set { background: var(--min-soft); border: 1px solid var(--min); color: var(--min); }
+
+.examples { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.examples .label { margin-right: 4px; }
+.chip {
+  font: 500 0.85rem var(--font-mono);
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+/* controls */
+.controls {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button {
+  font: 500 0.92rem var(--font-ui);
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover:not(:disabled) { background: #1941B3; border-color: #1941B3; color: #fff; }
+.speed { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+select {
+  font: 500 0.88rem var(--font-ui);
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.scrub { display: flex; align-items: center; gap: 12px; }
+#scrub { flex: 1; min-width: 0; accent-color: var(--accent); }
+.stepno { font: 500 0.85rem var(--font-mono); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.msg {
+  margin: 0;
+  min-height: 3.1em;
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  font-size: 1rem;
+}
+.msg.final { background: var(--min-soft); border-left-color: var(--min); }
+.msg b { font-family: var(--font-mono); font-weight: 600; }
+.badge { font: 600 0.78rem var(--font-mono); padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; }
+.badge.yes { background: var(--min); color: #fff; }
+.badge.no { background: var(--no-soft); color: var(--no); border: 1px solid #E7CF98; }
+
+/* main grid */
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.panel > h2 { margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+
+/* pseudocode */
+ol.code { list-style: none; margin: 0; padding: 6px 0; font: 400 0.84rem/1.35 var(--font-mono); }
+ol.code li {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  padding: 5px 12px 5px 0;
+  overflow-wrap: anywhere;
+}
+ol.code .n { text-align: right; padding-right: 12px; color: var(--line-strong); font-variant-numeric: tabular-nums; user-select: none; }
+ol.code .t { padding-left: calc(var(--i) * 1.3rem); }
+ol.code li.on { background: var(--accent-soft); }
+ol.code li.on .n { color: var(--accent); font-weight: 600; }
+ol.code li.on .t { font-weight: 600; }
+
+/* machine */
+.machine .sec { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.machine .sec + .sec { border-top: 1px solid var(--line); }
+.digits { display: flex; flex-wrap: wrap; gap: 4px; }
+.dg {
+  width: 2.1rem; height: 2.7rem;
+  display: grid; place-items: center;
+  font: 600 1.4rem var(--font-mono);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  transition: background 0.15s, border-color 0.15s;
+}
+.dg.done { color: var(--muted); background: var(--bg); border-color: var(--line); }
+.dg.cur { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.empty { color: var(--muted); font-size: 0.9rem; }
+
+.hint { margin: 0; font-size: 0.8rem; color: var(--muted); }
+.counters { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.cell {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 6px 0 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 0;
+}
+.cell .d { font: 600 0.85rem var(--font-mono); color: var(--muted); }
+.cell .bar { width: 100%; height: 68px; display: flex; align-items: flex-end; justify-content: center; }
+.cell .bar i { display: block; width: 58%; height: 0; background: var(--line-strong); transition: height 0.25s ease; }
+.cell .v { font: 600 1.15rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.cell .tag { height: 1em; font: 600 0.6rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--min); }
+.cell.ptr { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.cell.ptr .d { color: var(--accent); }
+.cell.ptr .bar i { background: var(--accent); }
+.cell.min { background: var(--min-soft); border-color: var(--min); }
+.cell.min .bar i { background: var(--min); }
+.cell.min .d { color: var(--min); }
+
+.vars { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 12px; margin: 0; }
+.vars div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vars dt { font: 500 0.78rem var(--font-mono); color: var(--muted); }
+.vars dd { margin: 0; font: 600 1.45rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.vars dd.set { color: var(--min); }
+
+@media (max-width: 820px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .machine { order: -1; }
+  .speed { margin-left: 0; }
+}
+@media (max-width: 480px) {
+  h1 { font-size: 1.45rem; }
+  .cell .v { font-size: 1rem; }
+  .dg { width: 1.9rem; height: 2.4rem; font-size: 1.2rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>Least frequent digit</h1>
+<p class="lead">Given an integer number, find the digit that occurs the fewest times among the present digits. If several digits share that minimum count, return the largest of them.</p>
+<h2>solving algorithm</h2>
+<p>Build a descending list containing each digit at most once. Then count directly in <b>num</b> how many times each listed digit occurs. Stop as soon as the minimum frequency becomes 1.</p>
+</header>
+  <div class="entry">
+    <div class="field">
+      <label class="label" for="num">Input</label>
+      <input id="num" type="text" inputmode="numeric" autocomplete="off" maxlength="24" value="921166" aria-describedby="numhint">
+    </div>
+    <div class="field">
+      <span class="label" id="outlabel">Output</span>
+      <output id="out" class="outbox" aria-labelledby="outlabel">—</output>
+    </div>
+    <div class="examples" role="group" aria-label="Examples">
+      <span class="label">Examples</span>
+      <button type="button" class="chip" data-ex="921166">921166</button>
+      <button type="button" class="chip" data-ex="6243866824511">6243866824511</button>
+      <button type="button" class="chip" data-ex="1033159066601299352">1033159066601299352</button>
+      <button type="button" class="chip" data-ex="10331590601299352">10331590601299352</button>
+      <button type="button" class="chip" data-ex="0">0</button>
+      <button type="button" class="chip" data-ex="1002">1002</button>
+      <button type="button" class="chip" data-ex="55555">55555</button>
+    </div>
+  </div>
+  <p class="hint" id="numhint" style="margin-top:-12px">Digits 0–9 only. Any change restarts from the first step.</p>
+
+  <section class="controls" aria-label="Run controls">
+    <div class="buttons">
+      <button type="button" id="bFirst" disabled>Start</button>
+      <button type="button" id="bBack" disabled>Back</button>
+      <button type="button" id="bNext" class="primary">Next</button>
+      <button type="button" id="bAuto">Run</button>
+      <button type="button" id="bLast">End</button>
+      <label class="speed" for="speed">Speed
+        <select id="speed"><option value="1300">Slow</option><option value="750" selected>Normal</option><option value="300">Fast</option></select>
+      </label>
+    </div>
+    <div class="scrub"><input id="scrub" type="range" min="0" max="0" value="0" aria-label="Position in the execution"><span class="stepno" id="stepno">Step 1 / 1</span></div>
+    <p class="msg" id="msg" aria-live="polite">The list <b>digit_list</b> is empty.</p>
+  </section>
+
+<div class="grid">
+<section class="panel"><h2 class="label">Algorithm</h2><ol class="code" id="code"></ol></section>
+<section class="panel machine"><h2 class="label">State</h2>
+<div class="sec"><p class="label">num</p><div class="digits" id="digits"></div></div>
+<div class="sec"><p class="label">digit_list — unique digits, descending order</p><div class="digit-list" id="digitList"></div><p class="hint">Only distinct digits are stored. The highlighted item is the current <b>d</b>.</p></div>
+<div class="sec"><p class="label">Variables</p><dl class="vars"><div><dt>current input digit</dt><dd id="vInput">—</dd></div><div><dt>d</dt><dd id="vD">—</dd></div><div><dt>num_occ</dt><dd id="vCount">—</dd></div><div><dt>min_occ</dt><dd id="vOcc">—</dd></div><div><dt>min_digit</dt><dd id="vMin">—</dd></div></dl></div>
+</section>
+</div>
+</div>
+<script>
+function buildTrace(str){
+  var digits=str.split('').map(Number),n=digits.length;if(!n)return[];
+  var steps=[],list=[];
+  var st={digitIdx:-1,processed:0,listIdx:-1,d:null,numOcc:null,minOcc:null,minDigit:null,done:false};
+  function push(line,msg,extra){Object.assign(st,extra||{});steps.push({line:line,msg:msg,list:list.slice(),digitIdx:st.digitIdx,processed:st.processed,listIdx:st.listIdx,d:st.d,numOcc:st.numOcc,minOcc:st.minOcc,minDigit:st.minDigit,done:st.done});}
+  function badge(ok){return ok?'<span class="badge yes">true</span>':'<span class="badge no">false</span>';}
+  push(0,'The list <b>digit_list</b> is set to empty.');
+  push(1,'Number acquired: <b>'+str+'</b>.');
+  for(var i=0;i<n;i++){
+    var x=digits[i];
+    push(2,'Take digit <b>'+x+'</b> (position '+(i+1)+' of '+n+').',{digitIdx:i,processed:i,d:x,listIdx:-1});
+    var pos=list.indexOf(x),present=pos>=0;
+    push(3,'Is <b>'+x+'</b> already in <b>digit_list</b>? '+badge(present)+'.',{listIdx:present?pos:-1});
+    if(!present){var ins=0;while(ins<list.length&&list[ins]>x)ins++;list.splice(ins,0,x);push(4,'Insert <b>'+x+'</b> in descending sorted order.',{listIdx:ins,processed:i+1});}
+    else push(2,'Digit <b>'+x+'</b> is already stored, so the list does not change.',{processed:i+1});
+  }
+  var d=list[0],count=0;
+  push(5,'Take the first digit in <b>digit_list</b>: <b>d = '+d+'</b>.',{digitIdx:-1,listIdx:0,d:d,numOcc:0});
+  push(6,'Start counting how many times <b>'+d+'</b> appears in <b>num</b>: <b>min_occ = 0</b>.',{minOcc:0});
+  for(var j=0;j<n;j++){push(6,'Compare input digit <b>'+digits[j]+'</b> with <b>d = '+d+'</b>.',{digitIdx:j});if(digits[j]===d){count++;push(6,'Match found: <b>min_occ = '+count+'</b>.',{minOcc:count});}}
+  push(7,'Set <b>min_digit = d = '+d+'</b>.',{digitIdx:-1,minOcc:count,minDigit:d});
+  if(st.minOcc>1){
+    push(7,'Condition <b>min_occ &gt; 1</b>: '+badge(true)+'. Examine the remaining digits.');
+    for(var li=1;li<list.length;li++){
+      d=list[li];count=0;
+      push(7,'Take remaining digit <b>d = '+d+'</b>.',{listIdx:li,d:d,numOcc:0});
+      push(7,'Start counting occurrences of <b>'+d+'</b>: <b>num_occ = 0</b>.');
+      for(var k=0;k<n;k++){push(7,'Compare input digit <b>'+digits[k]+'</b> with <b>d = '+d+'</b>.',{digitIdx:k});if(digits[k]===d){count++;push(7,'Match found: <b>num_occ = '+count+'</b>.',{numOcc:count});}}
+      var better=count<st.minOcc;
+      push(7,'Is <b>num_occ = '+count+'</b> smaller than <b>min_occ = '+st.minOcc+'</b>? '+badge(better)+'.',{digitIdx:-1,numOcc:count});
+      if(better){push(7,'Set <b>min_occ = num_occ = '+count+'</b>.',{minOcc:count});push(7,'Set <b>min_digit = d = '+d+'</b>.',{minDigit:d});}
+      if(st.minOcc===1){push(7,'<b>min_occ</b> is 1, so interrupt the iterations.');break;}else{push(7,'<b>min_occ</b> is '+st.minOcc+', so continue.');}
+    }
+  }else push(7,'Condition <b>min_occ &gt; 1</b>: '+badge(false)+'. A positive frequency cannot be smaller than 1.');
+  push(7,'Display <b>min_digit = '+st.minDigit+'</b>.',{digitIdx:-1,listIdx:-1,d:null,numOcc:null,done:true});
+  return steps;
+}
+(function(){
+  var CODE=[[0,'list of digit_list set to empty'],[0,'acquire num'],[0,'for each digit in num'],[1,'if it is not in digit_list'],[2,'add it in a descending sorted way in digit_list'],[0,'take the first digit d in digit_list'],[0,'count how many times it appears in num: min_occ'],[0,'min_digit = d'],[0,'if min_occ > 1'],[1,'for every remaining digit d in digit_list'],[2,'count how many times it appears in num: num_occ'],[2,'if num_occ is smaller than min_occ'],[3,'min_occ = num_occ'],[3,'min_digit = d'],[3,'if min_occ is 1, interrupt iterations'],[0,'display min_digit']];
+  var $=id=>document.getElementById(id),numEl=$('num'),msg=$('msg'),scrub=$('scrub'),stepno=$('stepno'),bFirst=$('bFirst'),bBack=$('bBack'),bNext=$('bNext'),bAuto=$('bAuto'),bLast=$('bLast');
+  var codeEl=$('code');codeEl.innerHTML=CODE.map((r,i)=>'<li data-l="'+i+'"><span class="n">'+(i+1)+'</span><span class="t" style="--i:'+r[0]+'">'+r[1]+'</span></li>').join('');var codeLis=codeEl.querySelectorAll('li');
+  var trace=[],idx=0,timer=null,digitsStr='';function stop(){if(timer){clearTimeout(timer);timer=null;}bAuto.textContent='Run';}
+  function render(){var has=trace.length>0,s=has?trace[idx]:null;codeLis.forEach((li,i)=>li.classList.toggle('on',!!s&&s.line===i));
+    $('digits').innerHTML=!has?'<span class="empty">Enter at least one digit.</span>':digitsStr.split('').map((ch,i)=>'<span class="dg'+(i<s.processed?' done':'')+(i===s.digitIdx?' cur':'')+'">'+ch+'</span>').join('');
+    $('digitList').innerHTML=!has||!s.list.length?'<span class="empty">empty list</span>':s.list.map((v,i)=>'<span class="ln'+(i===s.listIdx?' cur':'')+(s.minDigit!==null&&v===s.minDigit?' min':'')+'">'+v+'</span>').join('<span class="arrow-mini">   </span>');
+    $('vInput').textContent=s&&s.digitIdx>=0?digitsStr.charAt(s.digitIdx):'—';$('vD').textContent=s&&s.d!==null?s.d:'—';$('vCount').textContent=s&&s.numOcc!==null?s.numOcc:'—';$('vOcc').textContent=s&&s.minOcc!==null?s.minOcc:'—';$('vMin').textContent=s&&s.minDigit!==null?s.minDigit:'—';$('vOcc').classList.toggle('set',!!s&&s.done);$('vMin').classList.toggle('set',!!s&&s.done);$('out').textContent=s&&s.done?s.minDigit:'—';$('out').classList.toggle('set',!!s&&s.done);
+    msg.innerHTML=has?s.msg:'Enter a number made of digits to start the simulation.';msg.classList.toggle('final',!!s&&s.done);stepno.textContent='Step '+(has?idx+1:0)+' / '+trace.length;scrub.max=Math.max(0,trace.length-1);scrub.value=idx;scrub.disabled=!has;var a=!has||idx===0,z=!has||idx===trace.length-1;bFirst.disabled=a;bBack.disabled=a;bNext.disabled=z;bLast.disabled=z;bAuto.disabled=!has;if(z&&timer)stop();}
+  function load(str){stop();digitsStr=str;trace=buildTrace(str);idx=0;render();}function go(i){if(!trace.length)return;idx=Math.max(0,Math.min(trace.length-1,i));render();}function tick(){if(idx>=trace.length-1){stop();return;}go(idx+1);timer=setTimeout(tick,Number($('speed').value));}
+  bFirst.onclick=()=>{stop();go(0)};bBack.onclick=()=>{stop();go(idx-1)};bNext.onclick=()=>{stop();go(idx+1)};bLast.onclick=()=>{stop();go(trace.length-1)};bAuto.onclick=()=>{if(timer){stop();return;}if(idx>=trace.length-1)go(0);bAuto.textContent='Pause';timer=setTimeout(tick,Number($('speed').value));};scrub.oninput=()=>{stop();go(Number(scrub.value))};numEl.oninput=()=>{var clean=numEl.value.replace(/\D/g,'');if(clean!==numEl.value)numEl.value=clean;load(clean)};document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{numEl.value=b.dataset.ex;load(numEl.value)});document.addEventListener('keydown',e=>{var t=e.target&&e.target.tagName;if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA')return;if(e.key==='ArrowRight'){stop();go(idx+1)}else if(e.key==='ArrowLeft'){stop();go(idx-1)}});load(numEl.value.replace(/\D/g,''));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<!-- saved from url=(0072)file:///Users/bolchini/Downloads/leastfrequentdigit_current_counter.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<title>Least frequent digit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+<style>
+/* Layout: pseudocode on the left, machine state (digits, counters 0→9, variables) on the right; on phones the machine sits above the code. Fixed light theme. */
+:root {
+  --bg: #F3F6F9;
+  --surface: #FFFFFF;
+  --ink: #15212C;
+  --muted: #5A6B7B;
+  --line: #D6DEE6;
+  --line-strong: #B9C5D1;
+  --accent: #1F4FD8;
+  --accent-soft: #E6ECFD;
+  --min: #0E7C66;
+  --min-soft: #DDF3EC;
+  --no: #8A5A00;
+  --no-soft: #FBF0D9;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 28px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+header { display: flex; flex-direction: column; gap: 6px; }
+h1 { margin: 0; font-size: 1.7rem; line-height: 1.15; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 62ch; }
+
+.label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* input */
+.entry { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+#num {
+  font: 600 1.5rem var(--font-mono);
+  letter-spacing: 0.08em;
+  width: min(100%, 17rem);
+  padding: 6px 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+#num:focus-visible, button:focus-visible, select:focus-visible, #scrub:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.outbox {
+  display: block;
+  min-width: 4.5rem;
+  padding: 6px 14px;
+  text-align: center;
+  font: 600 1.5rem var(--font-mono);
+  line-height: normal;
+  background: var(--bg);
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  color: var(--muted);
+}
+.outbox.set { background: var(--min-soft); border: 1px solid var(--min); color: var(--min); }
+
+.examples { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.examples .label { margin-right: 4px; }
+.chip {
+  font: 500 0.85rem var(--font-mono);
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+/* controls */
+.controls {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button {
+  font: 500 0.92rem var(--font-ui);
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover:not(:disabled) { background: #1941B3; border-color: #1941B3; color: #fff; }
+.speed { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+select {
+  font: 500 0.88rem var(--font-ui);
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.scrub { display: flex; align-items: center; gap: 12px; }
+#scrub { flex: 1; min-width: 0; accent-color: var(--accent); }
+.stepno { font: 500 0.85rem var(--font-mono); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.msg {
+  margin: 0;
+  min-height: 3.1em;
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  font-size: 1rem;
+}
+.msg.final { background: var(--min-soft); border-left-color: var(--min); }
+.msg b { font-family: var(--font-mono); font-weight: 600; }
+.badge { font: 600 0.78rem var(--font-mono); padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; }
+.badge.yes { background: var(--min); color: #fff; }
+.badge.no { background: var(--no-soft); color: var(--no); border: 1px solid #E7CF98; }
+
+/* main grid */
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.panel > h2 { margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+
+/* pseudocode */
+ol.code { list-style: none; margin: 0; padding: 6px 0; font: 400 0.84rem/1.35 var(--font-mono); }
+ol.code li {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  padding: 5px 12px 5px 0;
+  overflow-wrap: anywhere;
+}
+ol.code .n { text-align: right; padding-right: 12px; color: var(--line-strong); font-variant-numeric: tabular-nums; user-select: none; }
+ol.code .t { padding-left: calc(var(--i) * 1.3rem); }
+ol.code li.on { background: var(--accent-soft); }
+ol.code li.on .n { color: var(--accent); font-weight: 600; }
+ol.code li.on .t { font-weight: 600; }
+
+/* machine */
+.machine .sec { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.machine .sec + .sec { border-top: 1px solid var(--line); }
+.digits { display: flex; flex-wrap: wrap; gap: 4px; }
+.dg {
+  width: 2.1rem; height: 2.7rem;
+  display: grid; place-items: center;
+  font: 600 1.4rem var(--font-mono);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  transition: background 0.15s, border-color 0.15s;
+}
+.dg.done { color: var(--muted); background: var(--bg); border-color: var(--line); }
+.dg.cur { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.empty { color: var(--muted); font-size: 0.9rem; }
+
+.hint { margin: 0; font-size: 0.8rem; color: var(--muted); }
+.counters { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.cell {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 6px 0 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 0;
+}
+.cell .d { font: 600 0.85rem var(--font-mono); color: var(--muted); }
+.cell .bar { width: 100%; height: 68px; display: flex; align-items: flex-end; justify-content: center; }
+.cell .bar i { display: block; width: 58%; height: 0; background: var(--line-strong); transition: height 0.25s ease; }
+.cell .v { font: 600 1.15rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.cell .tag { height: 1em; font: 600 0.6rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--min); }
+.cell.ptr { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.cell.ptr .d { color: var(--accent); }
+.cell.ptr .bar i { background: var(--accent); }
+.cell.min { background: var(--min-soft); border-color: var(--min); }
+.cell.min .bar i { background: var(--min); }
+.cell.min .d { color: var(--min); }
+
+.vars { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 12px; margin: 0; }
+.vars div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vars dt { font: 500 0.78rem var(--font-mono); color: var(--muted); }
+.vars dd { margin: 0; font: 600 1.45rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.vars dd.set { color: var(--min); }
+
+@media (max-width: 820px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .machine { order: -1; }
+  .speed { margin-left: 0; }
+}
+@media (max-width: 480px) {
+  h1 { font-size: 1.45rem; }
+  .cell .v { font-size: 1rem; }
+  .dg { width: 1.9rem; height: 2.4rem; font-size: 1.2rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Least frequent digit</h1>
+    <p>Given an integer number, find the digit that occurs the fewest times among the present digits. If several digits share that minimum count, return the largest of them.</p>
+    <h2>solving algorithm</h2>
+    <p>Extract all digits and insert them into a descending sorted list. Measure each subsequence of identical elements length and find the shortest one.</p>
+  </header>
+
+  <div class="entry">
+    <div class="field">
+      <label class="label" for="num">Input</label>
+      <input id="num" type="text" inputmode="numeric" autocomplete="off" maxlength="24" value="921166" aria-describedby="numhint">
+    </div>
+    <div class="field">
+      <span class="label" id="outlabel">Output</span>
+      <output id="out" class="outbox" aria-labelledby="outlabel">—</output>
+    </div>
+    <div class="examples" role="group" aria-label="Examples">
+      <span class="label">Examples</span>
+      <button type="button" class="chip" data-ex="921166">921166</button>
+      <button type="button" class="chip" data-ex="6243866824511">6243866824511</button>
+      <button type="button" class="chip" data-ex="1033159066601299352">1033159066601299352</button>
+      <button type="button" class="chip" data-ex="10331590601299352">10331590601299352</button>
+      <button type="button" class="chip" data-ex="0">0</button>
+      <button type="button" class="chip" data-ex="1002">1002</button>
+      <button type="button" class="chip" data-ex="55555">55555</button>
+    </div>
+  </div>
+  <p class="hint" id="numhint" style="margin-top:-12px">Digits 0–9 only. Any change restarts from the first step.</p>
+
+  <section class="controls" aria-label="Run controls">
+    <div class="buttons">
+      <button type="button" id="bFirst" disabled="">Start</button>
+      <button type="button" id="bBack" disabled="">Back</button>
+      <button type="button" id="bNext" class="primary">Next</button>
+      <button type="button" id="bAuto">Run</button>
+      <button type="button" id="bLast">End</button>
+      <label class="speed" for="speed">Speed
+        <select id="speed"><option value="1300">Slow</option><option value="750" selected="">Normal</option><option value="300">Fast</option></select>
+      </label>
+    </div>
+    <div class="scrub"><input id="scrub" type="range" min="0" max="21" value="0" aria-label="Position in the execution"><span class="stepno" id="stepno">Step 1 / 22</span></div>
+    <p class="msg" id="msg" aria-live="polite">The list <b>digit_list</b> is set to empty.</p>
+  </section>
+
+  <div class="grid">
+    <section class="panel">
+      <h2 class="label">Algorithm</h2>
+      <ol class="code" id="code"><li data-l="0" class="on"><span class="n">1</span><span class="t" style="--i:0">list of digit_list set to empty</span></li><li data-l="1"><span class="n">2</span><span class="t" style="--i:0">acquire num</span></li><li data-l="2"><span class="n">3</span><span class="t" style="--i:0">for each digit in num</span></li><li data-l="3"><span class="n">4</span><span class="t" style="--i:1">add it in a descending sorted way in digit_list</span></li><li data-l="4"><span class="n">5</span><span class="t" style="--i:0">start from the beginning of the list</span></li><li data-l="5"><span class="n">6</span><span class="t" style="--i:0">set the length of the subsequence of identical elements to 1</span></li><li data-l="6"><span class="n">7</span><span class="t" style="--i:0">while there is a subsequent element and it is equal to the initial one</span></li><li data-l="7"><span class="n">8</span><span class="t" style="--i:1">increment the length of the subsequence</span></li><li data-l="8"><span class="n">9</span><span class="t" style="--i:1">move to the next element in the list</span></li><li data-l="9"><span class="n">10</span><span class="t" style="--i:0">min_occ = length of the subsequence</span></li><li data-l="10"><span class="n">11</span><span class="t" style="--i:0">min_digit = first element of the list</span></li><li data-l="11"><span class="n">12</span><span class="t" style="--i:0">move to the first element of the next subsequence</span></li><li data-l="12"><span class="n">13</span><span class="t" style="--i:0">while min_occ &gt; 1 and there are elements remaining</span></li><li data-l="13"><span class="n">14</span><span class="t" style="--i:1">curr_dig = current digit in the list</span></li><li data-l="14"><span class="n">15</span><span class="t" style="--i:1">set the length of the subsequence of identical elements to 1</span></li><li data-l="15"><span class="n">16</span><span class="t" style="--i:1">while there is a subsequent element in the list and it is equal to curr_dig</span></li><li data-l="16"><span class="n">17</span><span class="t" style="--i:2">increment the length of the subsequence</span></li><li data-l="17"><span class="n">18</span><span class="t" style="--i:2">move to the next element in the list</span></li><li data-l="18"><span class="n">19</span><span class="t" style="--i:1">if length of the subsequence is smaller than min_occ</span></li><li data-l="19"><span class="n">20</span><span class="t" style="--i:2">min_occ = num_occ</span></li><li data-l="20"><span class="n">21</span><span class="t" style="--i:2">min_digit = curr_dig</span></li><li data-l="21"><span class="n">22</span><span class="t" style="--i:1">if min_occ is 1, interrupt iterations</span></li><li data-l="22"><span class="n">23</span><span class="t" style="--i:1">move to the first element of the next subsequence</span></li><li data-l="23"><span class="n">24</span><span class="t" style="--i:0">display min_digit</span></li></ol>
+    </section>
+
+    <section class="panel machine">
+      <h2 class="label">State</h2>
+      <div class="sec"><p class="label">num</p><div class="digits" id="digits"><span class="dg">9</span><span class="dg">2</span><span class="dg">1</span><span class="dg">1</span><span class="dg">6</span><span class="dg">6</span></div></div>
+      <div class="sec"><p class="label">digit_list (not an integer value)</p><div class="digit-list" id="digitList"><span class="empty">empty list</span></div><p class="hint">The highlighted element is the current position. Green cells belong to the subsequence currently being counted.</p></div>
+      <div class="sec">
+        <p class="label">Variables</p>
+        <dl class="vars">
+          <div><dt>current input digit</dt><dd id="vDigit">—</dd></div>
+          <div><dt>current list digit</dt><dd id="vCurr">—</dd></div>
+          <div><dt>num_occ</dt><dd id="vCount">—</dd></div>
+          <div><dt>min_occ</dt><dd id="vOcc">—</dd></div>
+          <div><dt>min_digit</dt><dd id="vMin">—</dd></div>
+        </dl>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script id="logic">
+function buildTrace(str) {
+  var digits = str.split('').map(Number);
+  var n = digits.length;
+  if (!n) return [];
+  var steps = [];
+  var list = [];
+  var st = { digitIdx:-1, listIdx:-1, groupStart:-1, groupEnd:-1, numOcc:null, minOcc:null, minDigit:null, currDig:null, done:false };
+  function push(line,msg,extra){
+    Object.assign(st,extra||{});
+    steps.push({line:line,msg:msg,list:list.slice(),digitIdx:st.digitIdx,listIdx:st.listIdx,groupStart:st.groupStart,groupEnd:st.groupEnd,numOcc:st.numOcc,minOcc:st.minOcc,minDigit:st.minDigit,currDig:st.currDig,done:st.done});
+  }
+  function badge(ok){ return ok?'<span class="badge yes">true</span>':'<span class="badge no">false</span>'; }
+
+  push(0,'The list <b>digit_list</b> is set to empty.');
+  push(1,'Number acquired: <b>'+str+'</b> ('+n+(n===1?' digit':' digits')+').');
+
+  for(var i=0;i<n;i++){
+    var d=digits[i];
+    push(2,'Take digit <b>'+d+'</b> (position '+(i+1)+' of '+n+').',{digitIdx:i});
+    var pos=0;
+    while(pos<list.length && list[pos]>=d) pos++;
+    list.splice(pos,0,d);
+    push(3,'Insert <b>'+d+'</b> into <b>digit_list</b> in descending sorted order.',{digitIdx:i,listIdx:pos,groupStart:-1,groupEnd:-1});
+  }
+
+  var p=0;
+  push(4,'Start from the beginning of the sorted list.',{digitIdx:-1,listIdx:p,currDig:list[p]});
+  var first=list[p];
+  var count=1;
+  var start=p;
+  push(5,'Set the length of the subsequence to <b>1</b>.',{numOcc:1,groupStart:start,groupEnd:p,currDig:first});
+  while(p+1<list.length && list[p+1]===first){
+    push(6,'There is a subsequent element and it is equal to <b>'+first+'</b> → '+badge(true)+'.',{listIdx:p,groupStart:start,groupEnd:p});
+    count++;
+    push(7,'Increment the subsequence length: <b>num_occ = '+count+'</b>.',{numOcc:count,groupEnd:p+1});
+    p++;
+    push(8,'Move to the next element in the list.',{listIdx:p,groupEnd:p});
+  }
+  push(6,'The next element is absent or different from <b>'+first+'</b> → '+badge(false)+'. The first subsequence ends.',{listIdx:p,groupStart:start,groupEnd:p});
+  push(9,'min_occ = <b>'+count+'</b>, the length of the first subsequence.',{minOcc:count,numOcc:count});
+  push(10,'min_digit = <b>'+first+'</b>, the first element of the list.',{minDigit:first});
+
+  if(p+1<list.length){ p++; push(11,'Move to the first element of the next subsequence.',{listIdx:p,groupStart:-1,groupEnd:-1,currDig:list[p],numOcc:null}); }
+  else { p=list.length; push(11,'There are no remaining elements in the list.',{listIdx:-1,groupStart:-1,groupEnd:-1,currDig:null,numOcc:null}); }
+
+  while(st.minOcc>1 && p<list.length){
+    push(12,'Condition: min_occ &gt; 1 and elements remain → '+badge(true)+'.',{listIdx:p});
+    var curr=list[p];
+    push(13,'curr_dig = <b>'+curr+'</b>.',{currDig:curr,listIdx:p});
+    var c=1, s=p;
+    push(14,'Set the length of this subsequence to <b>1</b>.',{numOcc:1,groupStart:s,groupEnd:p});
+    while(p+1<list.length && list[p+1]===curr){
+      push(15,'The next element is also <b>'+curr+'</b> → '+badge(true)+'.',{listIdx:p});
+      c++;
+      push(16,'Increment the subsequence length: <b>num_occ = '+c+'</b>.',{numOcc:c,groupEnd:p+1});
+      p++;
+      push(17,'Move to the next element in the list.',{listIdx:p,groupEnd:p});
+    }
+    push(15,'The next element is absent or different from <b>'+curr+'</b> → '+badge(false)+'. The subsequence ends.',{listIdx:p,groupStart:s,groupEnd:p});
+    var better=c<st.minOcc;
+    push(18,'Condition: '+c+' &lt; '+st.minOcc+' → '+badge(better)+'.'+(c===st.minOcc?' Same frequency: the larger digit already stored remains.':''),{numOcc:c});
+    if(better){
+      push(19,'min_occ = <b>'+c+'</b>.',{minOcc:c});
+      push(20,'min_digit = <b>'+curr+'</b>.',{minDigit:curr});
+    }
+    if(st.minOcc===1){
+      push(21,'min_occ is <b>1</b>: no smaller positive frequency exists, so the iterations stop.',{});
+      break;
+    }
+    if(p+1<list.length){ p++; push(22,'Move to the first element of the next subsequence.',{listIdx:p,groupStart:-1,groupEnd:-1,currDig:list[p],numOcc:null}); }
+    else { p=list.length; push(22,'No more subsequences remain.',{listIdx:-1,groupStart:-1,groupEnd:-1,currDig:null,numOcc:null}); }
+  }
+  if(!(st.minOcc===1) && p>=list.length) push(12,'No elements remain, so the search ends.',{listIdx:-1});
+  else if(st.minOcc===1) push(12,'Condition min_occ &gt; 1 is false, so no further subsequence is needed.',{listIdx:-1});
+
+  push(23,'Display min_digit: <b>'+st.minDigit+'</b>.',{listIdx:-1,groupStart:-1,groupEnd:-1,numOcc:null,currDig:null,done:true});
+  return steps;
+}
+</script>
+
+<script id="ui">
+(function(){
+  var CODE=[
+    [0,'list of digit_list set to empty'],
+    [0,'acquire num'],
+    [0,'for each digit in num'],
+    [1,'add it in a descending sorted way in digit_list'],
+    [0,'start from the beginning of the list'],
+    [0,'set the length of the subsequence of identical elements to 1'],
+    [0,'while there is a subsequent element and it is equal to the initial one'],
+    [1,'increment the length of the subsequence'],
+    [1,'move to the next element in the list'],
+    [0,'min_occ = length of the subsequence'],
+    [0,'min_digit = first element of the list'],
+    [0,'move to the first element of the next subsequence'],
+    [0,'while min_occ > 1 and there are elements remaining'],
+    [1,'curr_dig = current digit in the list'],
+    [1,'set the length of the subsequence of identical elements to 1'],
+    [1,'while there is a subsequent element in the list and it is equal to curr_dig'],
+    [2,'increment the length of the subsequence'],
+    [2,'move to the next element in the list'],
+    [1,'if length of the subsequence is smaller than min_occ'],
+    [2,'min_occ = num_occ'],
+    [2,'min_digit = curr_dig'],
+    [1,'if min_occ is 1, interrupt iterations'],
+    [1,'move to the first element of the next subsequence'],
+    [0,'display min_digit']
+  ];
+  var $=function(id){return document.getElementById(id);};
+  var numEl=$('num'),msgEl=$('msg'),scrub=$('scrub'),stepno=$('stepno');
+  var bFirst=$('bFirst'),bBack=$('bBack'),bNext=$('bNext'),bAuto=$('bAuto'),bLast=$('bLast');
+  var trace=[],idx=0,timer=null,digitsStr='';
+  var codeEl=$('code');
+  codeEl.innerHTML=CODE.map(function(r,i){return '<li data-l="'+i+'"><span class="n">'+(i+1)+'</span><span class="t" style="--i:'+r[0]+'">'+r[1]+'</span></li>';}).join('');
+  var codeLis=codeEl.querySelectorAll('li');
+  function stop(){if(timer){clearTimeout(timer);timer=null;}bAuto.textContent='Run';}
+  function render(){
+    var has=trace.length>0,s=has?trace[idx]:null;
+    codeLis.forEach(function(li,i){li.classList.toggle('on',!!s&&s.line===i);});
+    var dEl=$('digits');
+    if(!has)dEl.innerHTML='<span class="empty">Enter at least one digit.</span>';
+    else dEl.innerHTML=digitsStr.split('').map(function(ch,i){var cls='dg'+(i<s.digitIdx?' done':'')+(i===s.digitIdx?' cur':'');return '<span class="'+cls+'">'+ch+'</span>';}).join('');
+    var lEl=$('digitList');
+    if(!has||!s.list.length)lEl.innerHTML='<span class="empty">empty list</span>';
+    else lEl.innerHTML=s.list.map(function(v,i){var cls='ln';if(i===s.listIdx)cls+=' cur';if(s.groupStart>=0&&i>=s.groupStart&&i<=s.groupEnd)cls+=' group';return '<span class="'+cls+'">'+v+'</span>';}).join('<span class="arrow-mini">   </span>');
+    $('vDigit').textContent=s&&s.digitIdx>=0?digitsStr.charAt(s.digitIdx):'—';
+    $('vCurr').textContent=s&&s.currDig!==null?s.currDig:'—';
+    $('vCount').textContent=s&&s.numOcc!==null?s.numOcc:'—';
+    $('vOcc').textContent=s&&s.minOcc!==null?s.minOcc:'—';
+    $('vMin').textContent=s&&s.minDigit!==null?s.minDigit:'—';
+    $('vOcc').classList.toggle('set',!!s&&s.done); $('vMin').classList.toggle('set',!!s&&s.done);
+    var out=$('out'); out.textContent=s&&s.done?s.minDigit:'—'; out.classList.toggle('set',!!s&&s.done);
+    msgEl.innerHTML=has?s.msg:'Enter a number made of digits to start the simulation.'; msgEl.classList.toggle('final',!!s&&s.done);
+    stepno.textContent='Step '+(has?idx+1:0)+' / '+trace.length; scrub.max=Math.max(0,trace.length-1); scrub.value=idx; scrub.disabled=!has;
+    var atStart=!has||idx===0,atEnd=!has||idx===trace.length-1; bFirst.disabled=atStart;bBack.disabled=atStart;bNext.disabled=atEnd;bLast.disabled=atEnd;bAuto.disabled=!has;if(atEnd&&timer)stop();
+  }
+  function load(str){stop();digitsStr=str;trace=buildTrace(str);idx=0;render();}
+  function go(i){if(!trace.length)return;idx=Math.min(trace.length-1,Math.max(0,i));render();}
+  function tick(){if(idx>=trace.length-1){stop();return;}go(idx+1);if(idx>=trace.length-1){stop();return;}timer=setTimeout(tick,Number($('speed').value));}
+  bFirst.addEventListener('click',function(){stop();go(0);}); bBack.addEventListener('click',function(){stop();go(idx-1);}); bNext.addEventListener('click',function(){stop();go(idx+1);}); bLast.addEventListener('click',function(){stop();go(trace.length-1);});
+  bAuto.addEventListener('click',function(){if(timer){stop();return;}if(idx>=trace.length-1)go(0);bAuto.textContent='Pause';timer=setTimeout(tick,Number($('speed').value));});
+  scrub.addEventListener('input',function(){stop();go(Number(scrub.value));});
+  numEl.addEventListener('input',function(){var clean=numEl.value.replace(/\D/g,'');if(clean!==numEl.value)numEl.value=clean;load(clean);});
+  document.querySelectorAll('.chip').forEach(function(b){b.addEventListener('click',function(){numEl.value=b.getAttribute('data-ex');load(numEl.value);});});
+  document.addEventListener('keydown',function(e){var t=e.target&&e.target.tagName;if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA')return;if(e.key==='ArrowRight'){stop();go(idx+1);}else if(e.key==='ArrowLeft'){stop();go(idx-1);}});
+  load(numEl.value.replace(/\D/g,''));
+})();
+</script>
+</body></html>

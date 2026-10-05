@@ -1,0 +1,31 @@
+\usepackage{xcolor}
+\usepackage{listings}
+
+\definecolor{backcolour}{RGB}{248,248,248}
+\definecolor{codegreen}{RGB}{0,110,0}
+\definecolor{codegray}{RGB}{100,100,100}
+\definecolor{codepurple}{RGB}{125,0,125}
+\definecolor{codesyntax}{RGB}{0,60,160}
+
+\lstdefinestyle{cstyle}{
+  language=C,
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{backcolour},
+  commentstyle=\color{codegreen},
+  keywordstyle=\color{codesyntax},
+  numberstyle=\tiny\color{codegray},
+  stringstyle=\color{codepurple},
+  breakatwhitespace=false,
+  breaklines=true,
+  captionpos=t,
+  keepspaces=true,
+  numbers=left,
+  numbersep=5pt,
+  showspaces=false,
+  showstringspaces=false,
+  showtabs=false,
+  tabsize=2
+}
+
+% Applica lo stile ai blocchi di codice generati da Pandoc.
+\lstset{style=cstyle}

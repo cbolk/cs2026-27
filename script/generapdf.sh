@@ -40,10 +40,10 @@ pandoc_common=(
     "--lua-filter=$FILTER_KW"
 )
 
-if [[ "$mode" == "C" ]]; then
+if [[ "$mode" == "PY" ]]; then
     sed -e '/^\[file\]/d' "$input_file" |
         pandoc "${pandoc_common[@]}" -o "$OUTDIR/$1.full.pdf"
 else
-    sed -e '/```C/,/```/d' -e '/^\[file\]/d' "$input_file" |
+    sed -e '/```python/,/```/d' -e '/^\[file\]/d' "$input_file" |
         pandoc "${pandoc_common[@]}" -o "$OUTDIR/$1.pdf"
 fi

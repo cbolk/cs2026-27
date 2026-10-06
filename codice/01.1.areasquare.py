@@ -1,0 +1,10 @@
+# CONSTANT / ARBITRARY ASPECTS OF THE SOLUTION
+
+# DATA ACQUISITION
+side = int(input())
+
+# COMPUTATION
+area = side * side
+
+# VISUALISATION
+print(area)

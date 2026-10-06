@@ -1,6 +1,18 @@
 \usepackage{xcolor}
 \usepackage{listings}
 
+% 1. IMPOSTAZIONE FONT SANS-SERIF (Helvetica/Arial-like)
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% 2. COLORAZIONE TITOLI (SECTIONS IN BLU)
+\usepackage{sectsty}
+\definecolor{sectionblue}{RGB}{0,102,204} % Definisci la tonalità di blu desiderata
+\definecolor{sectiongreen}{RGB}{0,110,0} % Definisci la tonalità di blu desiderata
+\sectionfont{\color{sectionblue}}          % Applica il colore a \section
+\subsectionfont{\color{sectiongreen}}       % (Opzionale) Applica anche a \subsection
+\sectionfont{\color{sectionblue}}          % Applica il colore a \section
+
 \definecolor{backcolour}{RGB}{248,248,248}
 \definecolor{codegreen}{RGB}{0,110,0}
 \definecolor{codegray}{RGB}{100,100,100}

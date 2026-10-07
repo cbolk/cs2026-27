@@ -30,25 +30,25 @@ function Pandoc(doc)
   for i,el in ipairs(doc.blocks) do
     if el.t == "Div" and el.classes:includes('algfatti') then
       algcounter = algcounter + 1
-      local numero = pandoc.Para{pandoc.Strong(pandoc.Str("Algoritmi svolti #" .. algcounter .. ":"))}
+      local numero = pandoc.Para{pandoc.Strong(pandoc.Str("Algorithms #" .. algcounter .. ":"))}
       -- Inserisce il numero prima del contenuto del blocco
       el.content = {numero, table.unpack(el.content)}
       doc.blocks[i] = el
     elseif el.t == "Div" and el.classes:includes('algpro') then
       algcounterpro = algcounterpro + 1
-      local numero = pandoc.Para{pandoc.Strong(pandoc.Str("Algoritmi proposti #" .. algcounterpro .. ":"))}
+      local numero = pandoc.Para{pandoc.Strong(pandoc.Str("Proposed algorithms #" .. algcounterpro .. ":"))}
       -- Inserisce il numero prima del contenuto del blocco
       el.content = {numero, table.unpack(el.content)}
       doc.blocks[i] = el
     elseif el.t == "Div" and el.classes:includes('exefatti') then
       counter = counter + 1
-      local numero = pandoc.Para{pandoc.Strong(pandoc.Str("Esercizio svolto #" .. counter .. ":"))}
+      local numero = pandoc.Para{pandoc.Strong(pandoc.Str("Exercise #" .. counter .. ":"))}
       -- Inserisce il numero prima del contenuto del blocco
       el.content = {numero, table.unpack(el.content)}
       doc.blocks[i] = el
     elseif el.t == "Div" and el.classes:includes('exepro') then
       counterpro = counterpro + 1
-      local numero = pandoc.Para{pandoc.Strong(pandoc.Str("Esercizio proposto #" .. counterpro .. ":"))}
+      local numero = pandoc.Para{pandoc.Strong(pandoc.Str("Proposed exercise #" .. counterpro .. ":"))}
       -- Inserisce il numero prima del contenuto del blocco
       el.content = {numero, table.unpack(el.content)}
       doc.blocks[i] = el

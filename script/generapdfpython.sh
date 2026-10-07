@@ -17,11 +17,18 @@
 
 set -euo pipefail
 
+mode=""
+if [[ "${1:-}" == "PY" ]]; then
+    mode="PY"
+    shift
+fi
+FILTER="${1:-}"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_DIR="$ROOT_DIR/calendario"
 OUT_DIR="$ROOT_DIR/pdf"
 FILTER_FILE="$ROOT_DIR/script/numeraexpython.lua"
-FILTER="${1:-}"
+
 
 mkdir -p "$OUT_DIR"
 
@@ -33,9 +40,17 @@ fi
 shopt -s nullglob
 for src in "$SRC_DIR"/*"$FILTER"*.md; do
     name="$(basename "$src" .md)"
-    out="$OUT_DIR/$name.pdf"
+
+    if [[ "$mode" == "PY" ]]; then
+        out="$OUT_DIR/$name.full.pdf"
+        hide=0
+    else
+        out="$OUT_DIR/$name.pdf"
+        hide=1
+    fi
+
     echo "Genero $out"
-    pandoc "$src" \
+    HIDE_PYTHON="$hide" pandoc "$src" \
         --from=markdown+fenced_divs \
         --lua-filter="$FILTER_FILE" \
         --pdf-engine=xelatex \

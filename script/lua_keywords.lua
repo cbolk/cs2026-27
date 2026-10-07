@@ -25,7 +25,7 @@ function Pandoc(doc)
 
   -- Header "Parole chiave"
   local blocks = {}
-  table.insert(blocks, pandoc.Header(1, "Parole chiave"))
+  table.insert(blocks, pandoc.Header(1, "Keywords"))
 
   -- Elenco puntato
   table.insert(blocks, pandoc.BulletList(items))

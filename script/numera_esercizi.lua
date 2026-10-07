@@ -27,10 +27,10 @@ function Pandoc(doc)
 
     local function Div(el)
         if el.classes:includes("exefatti") then
-            el.content:insert(1, pandoc.Para({ pandoc.Strong({ pandoc.Str("Esercizio " .. exe_n) }) }))
+            el.content:insert(1, pandoc.Para({ pandoc.Strong({ pandoc.Str("Exercise " .. exe_n) }) }))
             exe_n = exe_n + 1
         elseif el.classes:includes("exepro") then
-            el.content:insert(1, pandoc.Para({ pandoc.Strong({ pandoc.Str("Esercizio proposto " .. exepro_n) }) }))
+            el.content:insert(1, pandoc.Para({ pandoc.Strong({ pandoc.Str("Proposed exercise " .. exepro_n) }) }))
             exepro_n = exepro_n + 1
         end
         return el
